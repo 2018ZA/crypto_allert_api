@@ -45,14 +45,18 @@ async def get_chart(
         },
     ),
     period: str = Query(
-        "1d",
-        description="1h | 4h | 6h | 12h | 1d",
-        openapi_examples={
-            "last_hour": {"summary": "1 час", "value": "1h"},
-            "last_4h": {"summary": "4 часа", "value": "4h"},
-            "last_6h": {"summary": "6 часов", "value": "6h"},
-            "last_12h": {"summary": "12 часов", "value": "12h"},
-            "last_day": {"summary": "Сутки", "value": "1d"},
+    "1d",
+    description="1h | 4h | 6h | 12h | 1d | 2d | 7d | 30d | all",
+    openapi_examples={
+        "last_hour":   {"summary": "1 час",     "value": "1h"},
+        "last_4h":     {"summary": "4 часа",    "value": "4h"},
+        "last_6h":     {"summary": "6 часов",   "value": "6h"},
+        "last_12h":    {"summary": "12 часов",  "value": "12h"},
+        "last_day":    {"summary": "Сутки",     "value": "1d"},
+        "last_2d":     {"summary": "2 дня",     "value": "2d"},
+        "last_week":   {"summary": "7 дней",    "value": "7d"},
+        "last_month":  {"summary": "Месяц",     "value": "30d"},
+        "all_time":    {"summary": "Всё время", "value": "all"},
         },
     ),
     signals: Optional[List[str]] = Query(

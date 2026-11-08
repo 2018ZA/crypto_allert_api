@@ -23,13 +23,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 # Разрешённые периоды → часы
-PERIOD_HOURS: Dict[str, int] = {
+
+# None = «всё время» (без нижней границы по времени).
+PERIOD_HOURS: Dict[str, Optional[int]] = {
     "1h": 1,
     "4h": 4,
     "6h": 6,
     "12h": 12,
     "1d": 24,
+    "2d": 48,
+    "7d": 168,
+    "30d": 720,
+    "all": None,
 }
+
+# Жёсткий cap на количество строк в ответе.
+# Защита от выкачивания всей БД, если данных очень много.
+ABSOLUTE_MAX_ROWS = 2000
 
 # Алиасы сигналов → канонические 5 имён
 SIGNAL_ALIASES: Dict[str, str] = {
@@ -230,18 +240,25 @@ async def get_chart_data(
         ValueError — некорректные symbol/period/signals (→ HTTP 400).
     """
     period_key = (period or "").strip().lower()
-    hours = PERIOD_HOURS.get(period_key)
-    if hours is None:
+    if period_key not in PERIOD_HOURS:
         raise ValueError(
             f"invalid period '{period}'. allowed: {sorted(PERIOD_HOURS)}"
-        )
+    )
+    hours = PERIOD_HOURS[period_key]   # Optional[int]
 
     sym = normalize_symbol(symbol)
     signals_set = normalize_signals_filter(signals)
 
     to_time_naive = _to_naive_utc(datetime.now(timezone.utc))
-    from_time_naive = to_time_naive - timedelta(hours=hours)
-    max_rows = hours * 60 + 100
+
+    if hours is None:
+        # «Всё время»: без нижней границы, но не более ABSOLUTE_MAX_ROWS строк
+        from_time_naive = to_time_naive - timedelta(days=365 * 10)
+        max_rows = ABSOLUTE_MAX_ROWS
+    else:
+        from_time_naive = to_time_naive - timedelta(hours=hours)
+        # Запас на случай будущих минутных свечей, но не больше жёсткого cap
+        max_rows = min(hours * 60 + 100, ABSOLUTE_MAX_ROWS)
 
     rows = await _fetch_rows(
         db, sym, from_time_naive, to_time_naive, max_rows, prefix=False,
