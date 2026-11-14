@@ -101,3 +101,46 @@ class ErrorResponse(BaseModel):
         }
     )
     detail: str = Field(..., description="Описание ошибки")
+
+# ============ Trades (te_trades) ============
+
+class TradeItem(BaseModel):
+    id: int
+    symbol: str = Field(..., description="Тикер: BTCUSDT")
+    secid: Optional[str] = Field(None, description="ArenaGo secid (в crypto_analyzer всегда None)")
+    direction: str = Field(..., description="LONG")
+    status: str = Field(..., description="open | closed")
+    open_time: datetime = Field(..., description="Время открытия (UTC)")
+    entry_price: float
+    quantity: float = Field(..., description="Количество контрактов (float)")
+    size_usd: float = Field(..., description="Notional позиции в USD")
+    open_score: float = Field(..., description="overall_score при открытии (-14..+14)")
+    stop_loss: float
+    take_profit: float
+    close_time: Optional[datetime] = Field(None, description="Время закрытия (UTC), null если открыта")
+    exit_price: Optional[float] = None
+    close_reason: Optional[str] = Field(None, description="STOP_LOSS | TAKE_PROFIT | SIGNAL | ...")
+    close_score: Optional[float] = None
+    pnl_pct: Optional[float] = Field(None, description="PnL %, 1.5 = +1.5%")
+    pnl_usd: Optional[float] = None
+    signal_snapshot: Optional[dict] = None
+
+
+class TradesSummary(BaseModel):
+    total: int
+    open_count: int
+    closed_count: int
+    wins: int
+    losses: int
+    win_rate: float
+    total_pnl_pct: float
+    total_pnl_usd: float
+    avg_pnl_pct: Optional[float] = None
+
+
+class TradesResponse(BaseModel):
+    limit: int
+    offset: int
+    filters: dict
+    summary: TradesSummary
+    items: List[TradeItem]

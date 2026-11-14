@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import get_settings
-from api.routes import chart_router, health_router
+from api.routes import chart_router, health_router, trades_router
 
 _settings = get_settings()
 
@@ -53,3 +53,4 @@ app.add_middleware(
 
 app.include_router(chart_router)
 app.include_router(health_router)
+app.include_router(trades_router)

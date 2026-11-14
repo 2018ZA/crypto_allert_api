@@ -166,7 +166,7 @@ async def _fetch_rows(
 
     sql = text(
         f"""
-        SELECT DISTINCT ON (k.id)
+        SELECT DISTINCT ON (k.open_time)
             k.id              AS kline_id,
             k.symbol          AS symbol,
             k.open_time       AS open_time,
@@ -182,7 +182,7 @@ async def _fetch_rows(
         WHERE {symbol_clause}
           AND k.open_time >= :from_time
           AND k.open_time <= :to_time
-        ORDER BY k.id ASC, o.id DESC
+        ORDER BY k.open_time ASC, o.id DESC NULLS LAST
         LIMIT :max_rows
         """
     )
@@ -256,7 +256,7 @@ async def get_chart_data(
         from_time_naive = to_time_naive - timedelta(days=365 * 10)
         max_rows = ABSOLUTE_MAX_ROWS
     else:
-        from_time_naive = to_time_naive - timedelta(hours=hours)
+        from_time_naive = to_time_naive - timedelta(hours=hours + 1)
         # Запас на случай будущих минутных свечей, но не больше жёсткого cap
         max_rows = min(hours * 60 + 100, ABSOLUTE_MAX_ROWS)
 
