@@ -138,8 +138,15 @@ async def get_trades_data(
             t.stop_loss, t.take_profit,
             t.close_time, t.exit_price, t.close_reason, t.close_score,
             t.pnl_pct, t.pnl_usd,
+            lk.close_price AS current_price,
+            lk.open_time AS current_price_time,
             {snapshot_col} AS signal_snapshot
         FROM te_trades t
+        LEFT JOIN (
+            SELECT DISTINCT ON (symbol) symbol, close_price, open_time
+            FROM kline_data
+            ORDER BY symbol, open_time DESC
+        ) lk ON lk.symbol = t.symbol
         WHERE {where_sql}
         ORDER BY t.open_time DESC, t.id DESC
         LIMIT :limit OFFSET :offset
@@ -168,6 +175,13 @@ async def get_trades_data(
             "close_score": float(r.close_score) if r.close_score is not None else None,
             "pnl_pct": pnl_pct_pct,
             "pnl_usd": float(r.pnl_usd) if r.pnl_usd is not None else None,
+            "current_price": float(r.current_price) if r.current_price is not None else None,
+            "current_price_time": _to_aware_utc(r.current_price_time),
+            "unrealized_pnl_pct": (
+                (float(r.current_price) - float(r.entry_price)) / float(r.entry_price) * 100.0
+                if r.status == "1" and r.current_price is not None and float(r.entry_price) > 0
+                else None
+            ),
             "signal_snapshot": r.signal_snapshot if include_snapshot else None,
         })
 
@@ -179,8 +193,15 @@ async def get_trades_data(
             COUNT(*) FILTER (WHERE t.status = '0' AND t.pnl_pct > 0)  AS wins,
             COUNT(*) FILTER (WHERE t.status = '0' AND t.pnl_pct <= 0) AS losses,
             COALESCE(SUM(t.pnl_pct) FILTER (WHERE t.status = '0'), 0) AS total_pnl_frac,
-            COALESCE(SUM(t.pnl_usd) FILTER (WHERE t.status = '0'), 0) AS total_pnl_usd
+            COALESCE(SUM(t.pnl_usd) FILTER (WHERE t.status = '0'), 0) AS total_pnl_usd,
+            COALESCE(SUM((lk.close_price - t.entry_price) / NULLIF(t.entry_price, 0))
+                     FILTER (WHERE t.status = '1' AND lk.close_price IS NOT NULL), 0) AS unrealized_frac
         FROM te_trades t
+        LEFT JOIN (
+            SELECT DISTINCT ON (symbol) symbol, close_price, open_time
+            FROM kline_data
+            ORDER BY symbol, open_time DESC
+        ) lk ON lk.symbol = t.symbol
         WHERE {where_sql}
     """)
     srow = (await db.execute(summary_sql, params)).first()
@@ -204,6 +225,7 @@ async def get_trades_data(
         "total_pnl_pct": round(total_pnl_pct, 2),
         "total_pnl_usd": round(total_pnl_usd, 4),
         "avg_pnl_pct": round(avg_pnl_pct, 2) if avg_pnl_pct is not None else None,
+        "unrealized_pnl_pct": round(float(srow.unrealized_frac or 0.0) * 100.0, 2),
     }
 
     filters = {

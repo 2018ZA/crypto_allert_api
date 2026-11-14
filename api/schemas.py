@@ -121,8 +121,11 @@ class TradeItem(BaseModel):
     exit_price: Optional[float] = None
     close_reason: Optional[str] = Field(None, description="STOP_LOSS | TAKE_PROFIT | SIGNAL | ...")
     close_score: Optional[float] = None
-    pnl_pct: Optional[float] = Field(None, description="PnL %, 1.5 = +1.5%")
+    pnl_pct: Optional[float] = Field(None, description="PnL %, 1.5 = +1.5% (realized)")
     pnl_usd: Optional[float] = None
+    current_price: Optional[float] = Field(None, description="Текущая цена (close последней свечи)")
+    current_price_time: Optional[datetime] = Field(None, description="Время последней свечи (UTC)")
+    unrealized_pnl_pct: Optional[float] = Field(None, description="Нереализованный PnL % (только для open)")
     signal_snapshot: Optional[dict] = None
 
 
@@ -136,6 +139,7 @@ class TradesSummary(BaseModel):
     total_pnl_pct: float
     total_pnl_usd: float
     avg_pnl_pct: Optional[float] = None
+    unrealized_pnl_pct: float = Field(0.0, description="Суммарный нереализованный PnL % (по open)")
 
 
 class TradesResponse(BaseModel):
